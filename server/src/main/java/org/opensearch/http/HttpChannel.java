@@ -32,6 +32,7 @@
 
 package org.opensearch.http;
 
+import org.opensearch.common.annotation.PublicApi;
 import org.opensearch.common.network.CloseableChannel;
 import org.opensearch.core.action.ActionListener;
 
@@ -41,8 +42,9 @@ import java.util.Optional;
 /**
  * Represents an HTTP comms channel
  *
- * @opensearch.internal
+ * @opensearch.api
  */
+@PublicApi(since = "1.0.0")
 public interface HttpChannel extends CloseableChannel {
     /**
      * Notify HTTP channel that exception happens and the response may not be sent (for example, timeout)
@@ -75,7 +77,7 @@ public interface HttpChannel extends CloseableChannel {
 
     /**
      * Returns the contextual property associated with this specific HTTP channel (the
-     * implementation of how such properties are managed depends on the the particular
+     * implementation of how such properties are managed depends on the particular
      * transport engine).
      *
      * @param name the name of the property

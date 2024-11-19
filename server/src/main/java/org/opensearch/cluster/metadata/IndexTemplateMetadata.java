@@ -50,6 +50,7 @@ import org.opensearch.core.xcontent.ToXContent;
 import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.core.xcontent.XContentParser;
 import org.opensearch.index.mapper.MapperService;
+import org.opensearch.index.translog.BufferedChecksumStreamOutput;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -257,6 +258,16 @@ public class IndexTemplateMetadata extends AbstractDiffable<IndexTemplateMetadat
         out.writeOptionalVInt(version);
     }
 
+    public void writeVerifiableTo(BufferedChecksumStreamOutput out) throws IOException {
+        out.writeString(name);
+        out.writeInt(order);
+        out.writeStringCollection(patterns);
+        Settings.writeSettingsToStream(settings, out);
+        out.writeMap(mappings, StreamOutput::writeString, (stream, val) -> val.writeTo(stream));
+        out.writeMapValues(aliases, (stream, val) -> val.writeTo(stream));
+        out.writeOptionalVInt(version);
+    }
+
     @Override
     public String toString() {
         try {
@@ -273,8 +284,9 @@ public class IndexTemplateMetadata extends AbstractDiffable<IndexTemplateMetadat
     /**
      * Builder of index template metadata.
      *
-     * @opensearch.internal
+     * @opensearch.api
      */
+    @PublicApi(since = "1.0.0")
     public static class Builder {
 
         private static final Set<String> VALID_FIELDS = Sets.newHashSet(

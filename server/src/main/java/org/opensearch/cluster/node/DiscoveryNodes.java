@@ -38,12 +38,14 @@ import org.opensearch.cluster.AbstractDiffable;
 import org.opensearch.cluster.Diff;
 import org.opensearch.common.Booleans;
 import org.opensearch.common.Nullable;
+import org.opensearch.common.annotation.PublicApi;
 import org.opensearch.common.regex.Regex;
 import org.opensearch.common.util.set.Sets;
 import org.opensearch.core.common.Strings;
 import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.common.io.stream.StreamOutput;
 import org.opensearch.core.common.transport.TransportAddress;
+import org.opensearch.index.translog.BufferedChecksumStreamOutput;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -63,8 +65,9 @@ import java.util.stream.StreamSupport;
  * This class holds all {@link DiscoveryNode} in the cluster and provides convenience methods to
  * access, modify merge / diff discovery nodes.
  *
- * @opensearch.internal
+ * @opensearch.api
  */
+@PublicApi(since = "1.0.0")
 public class DiscoveryNodes extends AbstractDiffable<DiscoveryNodes> implements Iterable<DiscoveryNode> {
 
     public static final DiscoveryNodes EMPTY_NODES = builder().build();
@@ -580,8 +583,9 @@ public class DiscoveryNodes extends AbstractDiffable<DiscoveryNodes> implements 
     /**
      * Delta between nodes.
      *
-     * @opensearch.internal
+     * @opensearch.api
      */
+    @PublicApi(since = "1.0.0")
     public static class Delta {
 
         private final String localNodeId;
@@ -698,16 +702,66 @@ public class DiscoveryNodes extends AbstractDiffable<DiscoveryNodes> implements 
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
+        writeToUtil((output, value) -> value.writeTo(output), out);
+    }
+
+    public void writeToWithAttribute(StreamOutput out) throws IOException {
+        writeToUtil((output, value) -> value.writeToWithAttribute(output), out);
+    }
+
+    private void writeToUtil(final Writer<DiscoveryNode> writer, StreamOutput out) throws IOException {
+        writeClusterManager(out);
+        out.writeVInt(nodes.size());
+        for (DiscoveryNode node : this) {
+            writer.write(out, node);
+        }
+    }
+
+    public void writeVerifiableTo(BufferedChecksumStreamOutput out) throws IOException {
+        writeClusterManager(out);
+        out.writeMapValues(nodes, (stream, val) -> val.writeVerifiableTo((BufferedChecksumStreamOutput) stream));
+    }
+
+    private void writeClusterManager(StreamOutput out) throws IOException {
         if (clusterManagerNodeId == null) {
             out.writeBoolean(false);
         } else {
             out.writeBoolean(true);
             out.writeString(clusterManagerNodeId);
         }
-        out.writeVInt(nodes.size());
-        for (DiscoveryNode node : this) {
-            node.writeTo(out);
-        }
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+            nodes,
+            dataNodes,
+            clusterManagerNodes,
+            ingestNodes,
+            clusterManagerNodeId,
+            localNodeId,
+            minNonClientNodeVersion,
+            maxNonClientNodeVersion,
+            maxNodeVersion,
+            minNodeVersion
+        );
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        DiscoveryNodes that = (DiscoveryNodes) o;
+        return Objects.equals(nodes, that.nodes)
+            && Objects.equals(dataNodes, that.dataNodes)
+            && Objects.equals(clusterManagerNodes, that.clusterManagerNodes)
+            && Objects.equals(ingestNodes, that.ingestNodes)
+            && Objects.equals(clusterManagerNodeId, that.clusterManagerNodeId)
+            && Objects.equals(localNodeId, that.localNodeId)
+            && Objects.equals(minNonClientNodeVersion, that.minNonClientNodeVersion)
+            && Objects.equals(maxNonClientNodeVersion, that.maxNonClientNodeVersion)
+            && Objects.equals(maxNodeVersion, that.maxNodeVersion)
+            && Objects.equals(minNodeVersion, that.minNodeVersion);
     }
 
     public static DiscoveryNodes readFrom(StreamInput in, DiscoveryNode localNode) throws IOException {
@@ -748,8 +802,9 @@ public class DiscoveryNodes extends AbstractDiffable<DiscoveryNodes> implements 
     /**
      * Builder of a map of discovery nodes.
      *
-     * @opensearch.internal
+     * @opensearch.api
      */
+    @PublicApi(since = "1.0.0")
     public static class Builder {
 
         private final Map<String, DiscoveryNode> nodes;
